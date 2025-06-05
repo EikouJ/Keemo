@@ -10,18 +10,32 @@ import android.view.inputmethod.InputConnection;
 public class MyinputMethod extends InputMethodService implements KeyboardView.OnKeyboardActionListener {
 
     private KeyboardView keyboardView;
-    private Keyboard keyboard;
+    private Keyboard mainKeyboard;
+    private Keyboard specialKeyboard;
+    private Keyboard currentKeyboard;
 
     private boolean isCaps = false;
     private boolean isCapsLock = false;
     private long lastShiftTime = 0;
+    private boolean isSpecialMode = false;
+
+    // Codes personnalisés
+    private static final int KEYCODE_SWITCH_TO_SPECIAL = -11;
+    private static final int KEYCODE_SWITCH_TO_MAIN = -10;
 
     @Override
     public View onCreateInputView() {
         keyboardView = (KeyboardView) getLayoutInflater().inflate(R.layout.keyboard, null);
-        keyboard = new Keyboard(this, R.xml.keys);
-        keyboardView.setKeyboard(keyboard);
+
+        // Initialiser les deux claviers
+        mainKeyboard = new Keyboard(this, R.xml.keys);
+        specialKeyboard = new Keyboard(this, R.xml.special_chars);
+
+        // Commencer avec le clavier principal
+        currentKeyboard = mainKeyboard;
+        keyboardView.setKeyboard(currentKeyboard);
         keyboardView.setOnKeyboardActionListener(this);
+
         return keyboardView;
     }
 
@@ -50,9 +64,17 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
                 );
                 break;
 
+            case KEYCODE_SWITCH_TO_SPECIAL:
+                switchToSpecialKeyboard();
+                break;
+
+            case KEYCODE_SWITCH_TO_MAIN:
+                switchToMainKeyboard();
+                break;
+
             default:
                 char code = (char) primaryCode;
-                if (Character.isLetter(code)) {
+                if (Character.isLetter(code) && !isSpecialMode) {
                     if (isCaps || isCapsLock) {
                         code = Character.toUpperCase(code);
                     } else {
@@ -61,8 +83,8 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
                 }
                 inputConnection.commitText(String.valueOf(code), 1);
 
-                // désactive majuscule temporaire après une touche si ce n’est pas un verrouillage
-                if (isCaps && !isCapsLock) {
+                // Désactiver majuscule temporaire après une touche si ce n'est pas un verrouillage
+                if (isCaps && !isCapsLock && !isSpecialMode) {
                     isCaps = false;
                     updateShiftKey();
                 }
@@ -70,12 +92,28 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
         }
     }
 
+    private void switchToSpecialKeyboard() {
+        isSpecialMode = true;
+        currentKeyboard = specialKeyboard;
+        keyboardView.setKeyboard(currentKeyboard);
+        keyboardView.invalidateAllKeys();
+    }
+
+    private void switchToMainKeyboard() {
+        isSpecialMode = false;
+        currentKeyboard = mainKeyboard;
+        keyboardView.setKeyboard(currentKeyboard);
+        updateShiftKey();
+    }
+
     private void handleShiftToggle() {
+        if (isSpecialMode) return; // Pas de shift en mode spécial
+
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastShiftTime < 500) {
             // Double appui → activer caps lock
-            isCapsLock = true;
-            isCaps = true;
+            isCapsLock = !isCapsLock;
+            isCaps = isCapsLock;
         } else {
             if (isCapsLock) {
                 isCapsLock = false;
@@ -89,7 +127,9 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
     }
 
     private void updateShiftKey() {
-        for (Keyboard.Key key : keyboard.getKeys()) {
+        if (isSpecialMode) return;
+
+        for (Keyboard.Key key : currentKeyboard.getKeys()) {
             if (key.label != null && key.label.length() == 1) {
                 char c = key.label.charAt(0);
                 if (Character.isLetter(c)) {
@@ -99,8 +139,14 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
                     key.codes[0] = (int) updatedChar;
                 }
             } else if (key.codes[0] == Keyboard.KEYCODE_SHIFT) {
-                // facultatif : changer l’apparence du label de SHIFT selon l'état
-                key.label = isCapsLock ? "⇪" : "SHIFT";
+                // Changer l'apparence du SHIFT selon l'état
+                if (isCapsLock) {
+                    key.label = "⇪"; // Caps lock activé
+                } else if (isCaps) {
+                    key.label = "⇧"; // Shift temporaire activé
+                } else {
+                    key.label = "SHIFT"; // Normal
+                }
             }
         }
         keyboardView.invalidateAllKeys();
@@ -108,12 +154,12 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
 
     @Override
     public void onPress(int primaryCode) {
-        // Optionnel : retour visuel
+        // Feedback visuel optional
     }
 
     @Override
     public void onRelease(int primaryCode) {
-        // Optionnel : retour visuel
+        // Feedback visuel optional
     }
 
     @Override
@@ -126,21 +172,27 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
 
     @Override
     public void swipeLeft() {
-        // Optionnel
+        // Optionnel: fonctionnalité de swipe vers la gauche
     }
 
     @Override
     public void swipeRight() {
-        // Optionnel
+        // Optionnel: fonctionnalité de swipe vers la droite
     }
 
     @Override
     public void swipeDown() {
-        // Optionnel
+        // Swipe vers le bas: fermer le clavier
+        requestHideSelf(0);
     }
 
     @Override
     public void swipeUp() {
-        // Optionnel
+        // Swipe vers le haut: changer de clavier
+        if (isSpecialMode) {
+            switchToMainKeyboard();
+        } else {
+            switchToSpecialKeyboard();
+        }
     }
 }
