@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<android.inputmethodservice.KeyboardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/keyboard_view"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical">
-
-    <KeyboardView
-        android:id="@+id/keyboard_view"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:keyBackground="@drawable/key_background"
-        android:keyTextColor="#FFFFFF"
-        android:keyTextSize="18sp"
-        android:labelTextSize="14sp"
-        android:background="@drawable/keyboard_background"
-        android:padding="4dp" />
-</LinearLayout>
+    android:layout_alignParentBottom="true"
+    android:background="@drawable/keyboard_background"
+    android:keyBackground="@drawable/key_background"
+    android:keyPreviewLayout="@layout/key_preview_layout"
+    android:keyPreviewOffset="0dp"
+    android:keyPreviewHeight="50dp"
+    android:keyTextColor="#212121"
+    android:keyTextSize="16sp"
+    android:labelTextSize="14sp"
+    android:shadowColor="#80000000"
+    android:shadowRadius="2.0"
+    android:verticalCorrection="0dp" />

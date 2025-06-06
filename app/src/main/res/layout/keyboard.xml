@@ -1,6 +1,11 @@
-<?xml version="1.0" encoding="utf-8" ?>
-<android.inputmethodservice.KeyboardView xmlns:android="http://schemas.android.com/apk/res/android"
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:id="@+id/keyboard">
-</android.inputmethodservice.KeyboardView>
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/keyboard_background"
+    android:padding="8dp">
+
+    <include layout="@layout/keyboard_view" />
+
+</LinearLayout>

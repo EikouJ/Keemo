@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- État pressé pour touches spéciales -->
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="135"
+                android:startColor="#E8F5E8"
+                android:endColor="#C8E6C9"
+                android:type="linear" />
+            <corners android:radius="8dp" />
+            <stroke
+                android:width="1dp"
+                android:color="#4CAF50" />
+        </shape>
+    </item>
+
+    <!-- État normal pour touches spéciales -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="135"
+                android:startColor="#F5F5F5"
+                android:endColor="#EEEEEE"
+                android:type="linear" />
+            <corners android:radius="8dp" />
+            <stroke
+                android:width="1dp"
+                android:color="#BDBDBD" />
+        </shape>
+    </item>
+</selector>

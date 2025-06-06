@@ -4,7 +4,12 @@
     android:layout_height="wrap_content"
     android:background="@drawable/key_preview_background"
     android:textColor="#FFFFFF"
-    android:textSize="30sp"
+    android:textSize="22sp"
     android:textStyle="bold"
+    android:typeface="sans"
+    android:minWidth="40dp"
+    android:minHeight="50dp"
+    android:gravity="center"
     android:padding="8dp"
-    android:gravity="center" />
+    android:elevation="8dp"
+    android:layout_margin="4dp" />
