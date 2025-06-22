@@ -21,6 +21,11 @@ import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.util.DisplayMetrics;
+import android.view.ViewOutlineProvider;
+import android.widget.FrameLayout;
+import android.view.ViewTreeObserver;
+import android.view.WindowManager;
 
 public class MyinputMethod extends InputMethodService implements KeyboardView.OnKeyboardActionListener {
 
@@ -35,11 +40,8 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
     private boolean isSpecialMode = false;
 
     private Handler previewHandler = new Handler();
-
-    // Pour détecter la dernière touche pressée
     private int lastKeyCodePressed = 0;
 
-    // Pour les popups d'accents
     private PopupWindow accentPopup;
     private boolean isShowingAccents = false;
     private Handler longPressHandler = new Handler();
@@ -47,17 +49,44 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
     private float initialTouchX, initialTouchY;
     private int selectedAccentIndex = 0;
     private LinearLayout accentLayout;
-    private String[] accentChars = {"a", "à", "á", "â", "æ", "ä", "ā"};
-    private String[] accentCharsUpper = {"A", "À", "Á", "Â", "Æ", "Ä", "Ā"};
 
-    // Codes personnalisés
+    private String[] accentCharsA = {"à", "á", "â", "æ", "ä", "ā"};
+    private String[] accentCharsAUpper = {"À", "Á", "Â", "Æ", "Ä", "Ā"};
+
+    private String[] accentCharsE = {"è", "é", "ê", "ě", "ë", "ē"};
+    private String[] accentCharsEUpper = {"È", "É", "Ê", "Ě", "Ë", "Ē"};
+
+    private String[] accentCharsI = {"ì", "í", "î", "ï", "ī", ""};
+    private String[] accentCharsIUpper = {"Ì", "Í", "Î", "Ï", "Ī", "Ǐ"};
+
+    private String[] accentCharsO = {"ó", "ò", "œ", "ô", "ō", "ö"};
+    private String[] accentCharsOUpper = {"Ó", "Ò", "Œ", "Ô", "Ō", "Ö"};
+
+    private char currentAccentLetter = 0;
+
     private static final int KEYCODE_SWITCH_TO_SPECIAL = -11;
     private static final int KEYCODE_SWITCH_TO_MAIN = -10;
-    private static final long LONG_PRESS_DELAY = 500; // 500ms pour le long press
+    private static final long LONG_PRESS_DELAY = 500;
+
+    private FrameLayout mainContainer;
+    private View overlayView;
 
     @Override
     public View onCreateInputView() {
+        mainContainer = new FrameLayout(this);
+
         keyboardView = (KeyboardView) getLayoutInflater().inflate(R.layout.keyboard_view, null);
+        mainContainer.addView(keyboardView);
+
+        // Créer l'overlay semi-transparent
+        overlayView = new View(this);
+        overlayView.setBackgroundColor(Color.argb(100, 0, 0, 0));
+        overlayView.setVisibility(View.GONE);
+        overlayView.setOnClickListener(v -> hideAccentPopup());
+        mainContainer.addView(overlayView, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+        ));
 
         mainKeyboard = new Keyboard(this, R.xml.keys);
         specialKeyboard = new Keyboard(this, R.xml.special_chars);
@@ -67,16 +96,11 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
         keyboardView.setOnKeyboardActionListener(this);
         keyboardView.setPreviewEnabled(true);
 
-        // Intercepter les événements tactiles pour gérer les popups
-        keyboardView.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                return handleTouchEvent(event);
-            }
-        });
+        keyboardView.setOnTouchListener((v, event) -> handleTouchEvent(event));
 
-        return keyboardView;
+        return mainContainer;
     }
+
 
     private boolean handleTouchEvent(MotionEvent event) {
         switch (event.getAction()) {
@@ -84,17 +108,19 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
                 initialTouchX = event.getX();
                 initialTouchY = event.getY();
 
-                // Vérifier si c'est la touche 'a'
                 int keyIndex = getKeyIndex(event.getX(), event.getY());
-                if (keyIndex != -1 && isKeyA(keyIndex)) {
+                if (keyIndex != -1 && isAccentKey(keyIndex)) {
                     startLongPressTimer(keyIndex);
                 }
                 break;
 
             case MotionEvent.ACTION_MOVE:
                 if (isShowingAccents) {
-                    updateAccentSelection(event.getX(), event.getY());
-                    return true; // Consommer l'événement
+                    if (Math.abs(event.getX() - initialTouchX) > dpToPx(5)
+                            || Math.abs(event.getY() - initialTouchY) > dpToPx(5)) {
+                        updateAccentSelection(event.getX(), event.getY());
+                    }
+                    return true;
                 }
                 break;
 
@@ -103,12 +129,12 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
                 if (isShowingAccents) {
                     selectAccent();
                     hideAccentPopup();
-                    return true; // Consommer l'événement
+                    return true;
                 }
                 cancelLongPressTimer();
                 break;
         }
-        return false; // Laisser le KeyboardView gérer les autres événements
+        return false;
     }
 
     private int getKeyIndex(float x, float y) {
@@ -127,14 +153,35 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
         return -1;
     }
 
-    private boolean isKeyA(int keyIndex) {
+    private boolean isAccentKey(int keyIndex) {
         if (keyIndex < 0 || keyIndex >= currentKeyboard.getKeys().size()) return false;
         Keyboard.Key key = currentKeyboard.getKeys().get(keyIndex);
-        return key.codes != null && key.codes.length > 0 &&
-                (key.codes[0] == 97 || key.codes[0] == 65); // 'a' ou 'A'
+        if (key.codes == null || key.codes.length == 0) return false;
+
+        int code = key.codes[0];
+        return (code == 97 || code == 65) ||
+                (code == 101 || code == 69) ||
+                (code == 105 || code == 73) ||
+                (code == 111 || code == 79);
+    }
+
+    private char getAccentLetter(int keyIndex) {
+        if (keyIndex < 0 || keyIndex >= currentKeyboard.getKeys().size()) return 0;
+        Keyboard.Key key = currentKeyboard.getKeys().get(keyIndex);
+        if (key.codes == null || key.codes.length == 0) return 0;
+
+        int code = key.codes[0];
+        switch (code) {
+            case 97: case 65: return 'a';
+            case 101: case 69: return 'e';
+            case 105: case 73: return 'i';
+            case 111: case 79: return 'o';
+            default: return 0;
+        }
     }
 
     private void startLongPressTimer(int keyIndex) {
+        currentAccentLetter = getAccentLetter(keyIndex);
         longPressRunnable = new Runnable() {
             @Override
             public void run() {
@@ -149,114 +196,141 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
             longPressHandler.removeCallbacks(longPressRunnable);
             longPressRunnable = null;
         }
+        currentAccentLetter = 0;
+    }
+
+    private String[] getCurrentAccentChars() {
+        switch (currentAccentLetter) {
+            case 'a':
+                return (isCaps || isCapsLock) ? accentCharsAUpper : accentCharsA;
+            case 'e':
+                return (isCaps || isCapsLock) ? accentCharsEUpper : accentCharsE;
+            case 'i':
+                return (isCaps || isCapsLock) ? accentCharsIUpper : accentCharsI;
+            case 'o':
+                return (isCaps || isCapsLock) ? accentCharsOUpper : accentCharsO;
+            default:
+                return new String[0];
+        }
     }
 
     private void showAccentPopup(int keyIndex) {
         isShowingAccents = true;
         selectedAccentIndex = 0;
 
-        // Créer le layout du popup
+        // Supprimer l'overlay qui cause des problèmes de layout
+        // overlayView.setVisibility(View.VISIBLE);
+
         accentLayout = new LinearLayout(this);
         accentLayout.setOrientation(LinearLayout.HORIZONTAL);
-        accentLayout.setPadding(16, 16, 16, 16);
+        accentLayout.setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8));
 
-        // Background avec le même style que key_preview_background
         GradientDrawable background = new GradientDrawable();
         background.setShape(GradientDrawable.RECTANGLE);
-
-        // Gradient similaire au preview
-        int[] colors = {Color.parseColor("#1565C0"), Color.parseColor("#0D47A1")};
-        background.setColors(colors);
-        background.setGradientType(GradientDrawable.LINEAR_GRADIENT);
-        background.setOrientation(GradientDrawable.Orientation.TL_BR); // 135°
-
-        background.setCornerRadius(12); // Même rayon que le preview
-        background.setStroke(2, Color.parseColor("#0D47A1"));
+        background.setColor(Color.parseColor("#424242"));
+        background.setCornerRadius(dpToPx(8));
+        background.setStroke(dpToPx(1), Color.parseColor("#616161"));
         accentLayout.setBackground(background);
 
-        // Déterminer quels caractères utiliser selon le mode majuscule
-        String[] charsToUse = (isCaps || isCapsLock) ? accentCharsUpper : accentChars;
+        String[] charsToUse = getCurrentAccentChars();
 
-        // Ajouter les caractères avec accents
         for (int i = 0; i < charsToUse.length; i++) {
             TextView textView = createAccentTextView(charsToUse[i], i == selectedAccentIndex);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+            );
+            lp.setMargins(dpToPx(4), 0, dpToPx(4), 0);
+            textView.setLayoutParams(lp);
             accentLayout.addView(textView);
         }
 
-        // Créer et afficher le popup
-        accentPopup = new PopupWindow(accentLayout,
+        accentPopup = new PopupWindow(
+                accentLayout,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
         accentPopup.setFocusable(false);
-        accentPopup.setTouchable(false);
+        accentPopup.setTouchable(true);
+        accentPopup.setOutsideTouchable(false); // Changé pour éviter les interactions externes
 
-        // Calculer la position du popup pour qu'il soit centré au-dessus de la touche
+        // Positionnement direct sans attendre le layout
+        positionAccentPopupDirect(keyIndex);
+    }
+
+    private void positionAccentPopupDirect(int keyIndex) {
         Keyboard.Key key = currentKeyboard.getKeys().get(keyIndex);
-        int[] location = new int[2];
-        keyboardView.getLocationOnScreen(location);
 
-        // Mesurer la largeur du popup
-        accentLayout.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
-        int popupWidth = accentLayout.getMeasuredWidth();
+        // Mesurer le popup
+        accentLayout.measure(
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        );
 
-        // Centrer horizontalement sur la touche
-        int popupX = location[0] + key.x + (key.width / 2) - (popupWidth / 2);
+        int popupHeight = accentLayout.getMeasuredHeight();
 
-        // Positionner au-dessus de la touche avec un petit espacement
-        int popupY = location[1] + key.y - accentLayout.getMeasuredHeight() - 20;
+        // Positionnement simple relatif à la touche
+        int offsetX = key.x + (key.width / 2);
+        int offsetY = key.y - popupHeight - dpToPx(8);
 
-        // S'assurer que le popup reste dans les limites de l'écran
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        if (popupX < 0) popupX = 10;
-        if (popupX + popupWidth > screenWidth) popupX = screenWidth - popupWidth - 10;
-        if (popupY < 0) popupY = location[1] + key.y + key.height + 10; // En dessous si pas de place au-dessus
-
-        accentPopup.showAtLocation(keyboardView, Gravity.NO_GRAVITY, popupX, popupY);
+        // Afficher directement sans calculs complexes
+        accentPopup.showAsDropDown(keyboardView, offsetX, offsetY);
     }
 
     private TextView createAccentTextView(String character, boolean isSelected) {
         TextView textView = new TextView(this);
         textView.setText(character);
-        textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
-        textView.setTextColor(Color.WHITE); // Texte blanc pour contraster avec le fond bleu
-        textView.setPadding(20, 15, 20, 15);
+        textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
+        textView.setPadding(dpToPx(12), dpToPx(6), dpToPx(12), dpToPx(6));
         textView.setGravity(Gravity.CENTER);
-        textView.setMinWidth(45); // Largeur minimale pour uniformité
+        textView.setMinWidth(dpToPx(42));
+        textView.setMinHeight(dpToPx(42));
+
+        GradientDrawable bg = new GradientDrawable();
+        bg.setShape(GradientDrawable.RECTANGLE);
+        bg.setCornerRadius(dpToPx(6));
 
         if (isSelected) {
-            // Cercle de mise en évidence avec un style cohérent
-            GradientDrawable selectedBackground = new GradientDrawable();
-            selectedBackground.setShape(GradientDrawable.OVAL);
-
-            // Gradient plus clair pour la sélection
-            int[] selectedColors = {Color.parseColor("#42A5F5"), Color.parseColor("#1E88E5")};
-            selectedBackground.setColors(selectedColors);
-            selectedBackground.setGradientType(GradientDrawable.LINEAR_GRADIENT);
-            selectedBackground.setOrientation(GradientDrawable.Orientation.TL_BR);
-
-            selectedBackground.setStroke(2, Color.parseColor("#0D47A1"));
-            textView.setBackground(selectedBackground);
+            bg.setColor(Color.parseColor("#5E5E5E"));
             textView.setTextColor(Color.WHITE);
-            textView.setElevation(4); // Légère élévation pour l'effet de sélection
         } else {
-            // Fond transparent pour les non-sélectionnés
-            textView.setBackground(null);
-            textView.setTextColor(Color.WHITE);
+            bg.setColor(Color.TRANSPARENT);
+            textView.setTextColor(Color.parseColor("#F0F0F0"));
         }
 
+        textView.setBackground(bg);
         return textView;
+    }
+
+    private void hideAccentPopup() {
+        if (accentPopup != null && accentPopup.isShowing()) {
+            accentPopup.dismiss();
+        }
+        // overlayView.setVisibility(View.GONE); // Supprimer cette ligne
+        isShowingAccents = false;
+        selectedAccentIndex = 0;
+        accentLayout = null;
+        currentAccentLetter = 0;
+    }
+
+    private int dpToPx(int dp) {
+        return (int) TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                dp,
+                getResources().getDisplayMetrics()
+        );
     }
 
     private void updateAccentSelection(float x, float y) {
         if (accentLayout == null) return;
 
-        // Calculer l'index basé sur la position X relative au popup
         int[] popupLocation = new int[2];
         accentLayout.getLocationOnScreen(popupLocation);
 
         float relativeX = x - popupLocation[0];
-        int newIndex = (int) (relativeX / (accentLayout.getWidth() / accentChars.length));
-        newIndex = Math.max(0, Math.min(accentChars.length - 1, newIndex));
+        String[] currentAccents = getCurrentAccentChars();
+        int newIndex = (int) (relativeX / (accentLayout.getWidth() / currentAccents.length));
+        newIndex = Math.max(0, Math.min(currentAccents.length - 1, newIndex));
 
         if (newIndex != selectedAccentIndex) {
             selectedAccentIndex = newIndex;
@@ -267,45 +341,35 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
     private void updateAccentHighlight() {
         if (accentLayout == null) return;
 
-        String[] charsToUse = (isCaps || isCapsLock) ? accentCharsUpper : accentChars;
-
         for (int i = 0; i < accentLayout.getChildCount(); i++) {
             TextView textView = (TextView) accentLayout.getChildAt(i);
 
             if (i == selectedAccentIndex) {
-                // Cercle de mise en évidence avec style cohérent
                 GradientDrawable selectedBackground = new GradientDrawable();
-                selectedBackground.setShape(GradientDrawable.OVAL);
-
-                // Gradient plus clair pour la sélection
-                int[] selectedColors = {Color.parseColor("#42A5F5"), Color.parseColor("#1E88E5")};
-                selectedBackground.setColors(selectedColors);
-                selectedBackground.setGradientType(GradientDrawable.LINEAR_GRADIENT);
-                selectedBackground.setOrientation(GradientDrawable.Orientation.TL_BR);
-
-                selectedBackground.setStroke(2, Color.parseColor("#0D47A1"));
+                selectedBackground.setShape(GradientDrawable.RECTANGLE);
+                selectedBackground.setColor(Color.parseColor("#616161"));
+                selectedBackground.setCornerRadius(dpToPx(6));
                 textView.setBackground(selectedBackground);
                 textView.setTextColor(Color.WHITE);
-                textView.setElevation(4);
+                textView.setElevation(dpToPx(2));
             } else {
                 textView.setBackground(null);
-                textView.setTextColor(Color.WHITE);
+                textView.setTextColor(Color.parseColor("#E0E0E0"));
                 textView.setElevation(0);
             }
         }
     }
 
     private void selectAccent() {
-        if (selectedAccentIndex >= 0 && selectedAccentIndex < accentChars.length) {
-            String[] charsToUse = (isCaps || isCapsLock) ? accentCharsUpper : accentChars;
-            String selectedChar = charsToUse[selectedAccentIndex];
+        String[] currentAccents = getCurrentAccentChars();
+        if (selectedAccentIndex >= 0 && selectedAccentIndex < currentAccents.length) {
+            String selectedChar = currentAccents[selectedAccentIndex];
 
             InputConnection inputConnection = getCurrentInputConnection();
             if (inputConnection != null) {
                 inputConnection.commitText(selectedChar, 1);
             }
 
-            // Réinitialiser caps si nécessaire
             if (isCaps && !isCapsLock && !isSpecialMode) {
                 isCaps = false;
                 updateShiftKey();
@@ -313,19 +377,8 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
         }
     }
 
-    private void hideAccentPopup() {
-        if (accentPopup != null && accentPopup.isShowing()) {
-            accentPopup.dismiss();
-            accentPopup = null;
-        }
-        isShowingAccents = false;
-        selectedAccentIndex = 0;
-        accentLayout = null;
-    }
-
     @Override
     public void onKey(int primaryCode, int[] keyCodes) {
-        // Si on affiche les accents, ignorer les touches normales
         if (isShowingAccents) return;
 
         InputConnection inputConnection = getCurrentInputConnection();
@@ -497,14 +550,14 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
 
     @Override
     public void swipeLeft() {
-        if (lastKeyCodePressed == 32) { // espace
+        if (lastKeyCodePressed == 32) {
             toggleKeyboard();
         }
     }
 
     @Override
     public void swipeRight() {
-        if (lastKeyCodePressed == 32) { // espace
+        if (lastKeyCodePressed == 32) {
             toggleKeyboard();
         }
     }
