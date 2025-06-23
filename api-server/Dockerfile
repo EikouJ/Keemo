@@ -1,10 +1,23 @@
-FROM python:3.9-slim
+# ------------ Dockerfile corrigé ------------
+FROM python:3.11-slim
 
+# Installer les dépendances système minimales
+RUN apt-get update && apt-get install -y build-essential && apt-get clean
+
+# Définir le répertoire de travail
 WORKDIR /app
-COPY . .
 
+# Copier les fichiers de dépendances
+COPY requirements.txt .
+
+# Installer les dépendances Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-EXPOSE 8000
+# Copier tout le contenu du dossier api-server dans /app
+COPY . .
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Exposer le port d'écoute (utilisé par Render ou Docker)
+EXPOSE 10000
+
+# Lancer l'application FastAPI avec uvicorn
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]

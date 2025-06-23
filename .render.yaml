@@ -1,0 +1,13 @@
+# ------------ .render.yaml ------------
+services:
+  - type: web
+    name: keemo-keyboard-api
+    env: docker
+    repo: https://github.com/EikouJ/Keemo
+    plan: free
+    autoDeploy: true
+    dockerContext: ./api-server
+    dockerfilePath: ./api-server/Dockerfile
+    envVars:
+      - key: PORT
+        value: 10000
