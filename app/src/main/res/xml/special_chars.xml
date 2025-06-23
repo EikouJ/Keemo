@@ -79,7 +79,8 @@
     <Row>
         <Key android:codes="-10" android:keyLabel="ABC" android:keyWidth="15%p" android:keyBackground="@drawable/key_special_background"/>
         <Key android:codes="44" android:keyLabel="," android:keyWidth="10%p"/>
-        <Key android:codes="32" android:keyLabel="SPACE" android:keyWidth="50%p"/>
+        <Key android:codes="32" android:keyLabel="SPACE" android:keyWidth="35%p"/>
+        <Key android:codes="-12" android:keyLabel="🇨🇲" android:keyWidth="15%p" android:keyBackground="@drawable/key_special_background"/>
         <Key android:codes="46" android:keyLabel="." android:keyWidth="10%p"/>
         <Key android:codes="-4" android:keyLabel="↵" android:keyWidth="15%p" android:keyBackground="@drawable/key_special_background"/>
     </Row>

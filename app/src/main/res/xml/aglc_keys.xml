@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Keyboard xmlns:android="http://schemas.android.com/apk/res/android"
+    android:verticalGap="2dp"
+    android:keyHeight="45dp"
+    android:horizontalGap="3dp"
+    android:keyWidth="10%p">
+
+    <Row><!-- Ligne vide pour l'espacement --></Row>
+
+    <!-- Chiffres -->
+    <Row>
+        <Key android:codes="49" android:keyLabel="1" android:keyTextSize="25sp" android:keyEdgeFlags="left"/>
+        <Key android:codes="50" android:keyLabel="2" android:keyTextSize="25sp"/>
+        <Key android:codes="51" android:keyLabel="3" android:keyTextSize="20sp"/>
+        <Key android:codes="52" android:keyLabel="4" android:keyTextSize="20sp"/>
+        <Key android:codes="53" android:keyLabel="5" android:keyTextSize="20sp"/>
+        <Key android:codes="54" android:keyLabel="6" android:keyTextSize="20sp"/>
+        <Key android:codes="55" android:keyLabel="7" android:keyTextSize="20sp"/>
+        <Key android:codes="56" android:keyLabel="8" android:keyTextSize="20sp"/>
+        <Key android:codes="57" android:keyLabel="9" android:keyTextSize="20sp"/>
+        <Key android:codes="48" android:keyLabel="0" android:keyTextSize="20sp" android:keyEdgeFlags="right"/>
+    </Row>
+
+    <!-- Ligne 1 - AGLC -->
+    <Row>
+        <Key android:codes="97" android:keyLabel="a" android:keyTextSize="20sp" android:keyTextColor="#808080" android:keyEdgeFlags="left"/>
+        <Key android:codes="603" android:keyLabel="ɛ" android:keyTextSize="20sp" />
+        <Key android:codes="601" android:keyLabel="ə" android:keyTextSize="20sp" />
+        <Key android:codes="114" android:keyLabel="r" android:keyTextSize="20sp" android:keyTextColor="#808080"/>
+        <Key android:codes="116" android:keyLabel="t" android:keyTextSize="20sp" android:keyTextColor="#808080"/>
+        <Key android:codes="121" android:keyLabel="y" android:keyTextSize="20sp" android:keyTextColor="#808080"/>
+        <Key android:codes="117" android:keyLabel="u" android:keyTextSize="20sp" android:keyTextColor="#808080"/>
+        <Key android:codes="105" android:keyLabel="i" android:keyTextSize="20sp" android:keyTextColor="#808080"/>
+        <Key android:codes="111" android:keyLabel="o" android:keyTextSize="20sp" android:keyTextColor="#808080"/>
+        <Key android:codes="596" android:keyLabel="ɔ" android:keyTextSize="20sp" android:keyEdgeFlags="right"/>
+    </Row>
+
+    <!-- Ligne 2 - AGLC -->
+    <Row>
+        <Key android:codes="595" android:keyLabel="ɓ" android:keyTextSize="20sp" android:keyEdgeFlags="left"/>
+        <Key android:codes="115" android:keyLabel="s" android:keyTextSize="20sp" android:keyTextColor="#808080"/>
+        <Key android:codes="599" android:keyLabel="ɗ" android:keyTextSize="20sp"/>
+        <Key android:codes="102" android:keyLabel="f" android:keyTextSize="20sp" android:keyTextColor="#808080"/>
+        <Key android:codes="608" android:keyLabel="ɠ" android:keyTextSize="20sp"/>
+        <Key android:codes="104" android:keyLabel="h" android:keyTextSize="20sp" android:keyTextColor="#808080"/>
+        <Key android:codes="658" android:keyLabel="ʒ" android:keyTextSize="20sp"/>
+        <Key android:codes="107" android:keyLabel="k" android:keyTextSize="20sp" android:keyTextColor="#808080"/>
+        <Key android:codes="108" android:keyLabel="l" android:keyTextSize="20sp" android:keyTextColor="#808080"/>
+        <Key android:codes="109" android:keyLabel="m" android:keyTextSize="20sp" android:keyTextColor="#808080" android:keyEdgeFlags="right"/>
+    </Row>
+
+    <!-- Ligne 3 - AGLC -->
+    <Row>
+        <Key android:codes="-1" android:keyLabel="⇧" android:keyTextSize="20sp" android:keyEdgeFlags="left" android:keyWidth="15%p" android:keyBackground="@drawable/key_special_background"/>
+        <Key android:codes="7813" android:keyLabel="ẅ" android:keyTextSize="20sp" android:keyWidth="11.67%p"/>
+        <Key android:codes="331" android:keyLabel="ŋ" android:keyTextSize="20sp" android:keyWidth="11.67%p"/>
+        <Key android:codes="643" android:keyLabel="ʃ" android:keyTextSize="20sp" android:keyWidth="11.67%p"/>
+        <Key android:codes="118" android:keyLabel="v" android:keyTextSize="20sp" android:keyWidth="11.67%p" android:keyTextColor="#808080"/>
+        <Key android:codes="98" android:keyLabel="b" android:keyTextSize="20sp" android:keyWidth="11.67%p" android:keyTextColor="#808080"/>
+        <Key android:codes="626" android:keyLabel="ɲ" android:keyTextSize="20sp" android:keyWidth="11.67%p"/>
+        <Key android:codes="-5" android:keyLabel="⌫" android:keyTextSize="20sp" android:keyEdgeFlags="right" android:isRepeatable="true" android:keyWidth="15%p" android:keyBackground="@drawable/key_special_background"/>
+    </Row>
+
+    <!-- Ligne navigation -->
+    <Row>
+        <Key android:codes="-11" android:keyLabel="#123" android:keyTextSize="20sp" android:keyEdgeFlags="left" android:keyWidth="15%p" android:keyBackground="@drawable/key_special_background"/>
+        <Key android:codes="44" android:keyLabel="," android:keyTextSize="20sp" android:keyWidth="10%p"/>
+        <Key android:codes="32" android:keyLabel="SPACE" android:keyTextSize="20sp" android:keyWidth="35%p"/>
+        <Key android:codes="-12" android:keyLabel="🇨🇲" android:keyTextSize="20sp" android:keyWidth="15%p" android:keyBackground="@drawable/key_special_background"/>
+        <Key android:codes="46" android:keyLabel="." android:keyTextSize="20sp" android:keyWidth="10%p"/>
+        <Key android:codes="-4" android:keyLabel="↵" android:keyTextSize="20sp" android:keyEdgeFlags="right" android:keyWidth="15%p" android:keyBackground="@drawable/key_special_background"/>
+    </Row>
+</Keyboard>

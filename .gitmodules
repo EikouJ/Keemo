@@ -1,0 +1,3 @@
+[submodule "api-server/ngram-api"]
+	path = api-server/ngram-api
+	url = https://github.com/dave2024coding/ngram-api.git
