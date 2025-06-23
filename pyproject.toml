@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "aglc-api"
+version = "0.1.0"
+description = "API de prédiction pour clavier AGLC"
+authors = ["Votre Nom <votre@email.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+fastapi = "^0.104.1"
+uvicorn = "^0.23.2"
+pydantic = "^2.4.2"
+scikit-learn = "^1.3.1"
+python-multipart = "^0.0.6"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
