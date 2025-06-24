@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Keyboard xmlns:android="http://schemas.android.com/apk/res/android"
+    android:verticalGap="3dp"
+    android:keyHeight="45dp"
+    android:horizontalGap="3dp"
+    android:keyWidth="10%p">
+
+    <!-- Ligne des chiffres - Toujours 10 touches -->
+    <Row>
+        <Key android:codes="49" android:keyLabel="1" android:keyEdgeFlags="left"/>
+        <Key android:codes="50" android:keyLabel="2"/>
+        <Key android:codes="51" android:keyLabel="3"/>
+        <Key android:codes="52" android:keyLabel="4"/>
+        <Key android:codes="53" android:keyLabel="5"/>
+        <Key android:codes="54" android:keyLabel="6"/>
+        <Key android:codes="55" android:keyLabel="7"/>
+        <Key android:codes="56" android:keyLabel="8"/>
+        <Key android:codes="57" android:keyLabel="9"/>
+        <Key android:codes="48" android:keyLabel="0" android:keyEdgeFlags="right"/>
+    </Row>
+
+    <!-- Ligne 1 symboles avancés - 10 touches -->
+    <Row>
+        <Key android:codes="126" android:keyLabel="~" android:keyTextSize="20sp"/>
+        <Key android:codes="96" android:keyLabel="`" android:keyTextSize="20sp"/>
+        <Key android:codes="124" android:keyLabel="|" android:keyTextSize="20sp"/>
+        <Key android:codes="92" android:keyLabel="\" android:keyTextSize="20sp"/>
+        <Key android:codes="94" android:keyLabel="^" android:keyTextSize="20sp"/>
+        <Key android:codes="176" android:keyLabel="°" android:keyTextSize="20sp"/>
+        <Key android:codes="8364" android:keyLabel="€" android:keyTextSize="20sp"/>
+        <Key android:codes="163" android:keyLabel="£" android:keyTextSize="20sp"/>
+        <Key android:codes="165" android:keyLabel="¥" android:keyTextSize="20sp"/>
+        <Key android:codes="162" android:keyLabel="¢" android:keyTextSize="20sp"/>
+    </Row>
+
+    <!-- Ligne 2 symboles mathématiques - 10 touches -->
+    <Row>
+        <Key android:codes="177" android:keyLabel="±" android:keyTextSize="20sp"/>
+        <Key android:codes="247" android:keyLabel="÷" android:keyTextSize="20sp"/>
+        <Key android:codes="215" android:keyLabel="×" android:keyTextSize="20sp"/>
+        <Key android:codes="8730" android:keyLabel="√" android:keyTextSize="20sp"/>
+        <Key android:codes="8734" android:keyLabel="∞" android:keyTextSize="20sp"/>
+        <Key android:codes="8804" android:keyLabel="≤" android:keyTextSize="20sp"/>
+        <Key android:codes="8805" android:keyLabel="≥" android:keyTextSize="20sp"/>
+        <Key android:codes="8800" android:keyLabel="≠" android:keyTextSize="20sp"/>
+        <Key android:codes="8776" android:keyLabel="≈" android:keyTextSize="20sp"/>
+        <Key android:codes="8747" android:keyLabel="∫" android:keyTextSize="20sp"/>
+    </Row>
+
+    <!-- Ligne de contrôle avec 2/2 et backspace -->
+    <Row>
+        <Key android:codes="-102" android:keyLabel="2/2" android:keyWidth="15%p" android:keyBackground="@drawable/key_special_background"/>
+        <Key android:codes="169" android:keyLabel="©" android:keyWidth="10%p"/>
+        <Key android:codes="174" android:keyLabel="®" android:keyWidth="10%p"/>
+        <Key android:codes="8482" android:keyLabel="™" android:keyWidth="10%p"/>
+        <Key android:codes="167" android:keyLabel="§" android:keyWidth="10%p"/>
+        <Key android:codes="182" android:keyLabel="¶" android:keyWidth="10%p"/>
+        <Key android:codes="8226" android:keyLabel="•" android:keyWidth="10%p"/>
+        <Key android:codes="8230" android:keyLabel="…" android:keyWidth="10%p"/>
+        <Key android:codes="-5" android:keyLabel="⌫" android:isRepeatable="true" android:keyWidth="15%p" android:keyBackground="@drawable/key_special_background"/>
+    </Row>
+
+    <!-- Ligne navigation finale -->
+    <Row>
+        <Key android:codes="-10" android:keyLabel="ABC" android:keyWidth="15%p" android:keyBackground="@drawable/key_special_background"/>
+        <Key android:codes="44" android:keyLabel="," android:keyWidth="10%p"/>
+        <Key android:codes="32" android:keyLabel="SPACE" android:keyWidth="35%p"/>
+        <Key android:codes="-12" android:keyLabel="🇨🇲" android:keyWidth="15%p" android:keyBackground="@drawable/key_special_background"/>
+        <Key android:codes="46" android:keyLabel="." android:keyWidth="10%p"/>
+        <Key android:codes="-4" android:keyLabel="↵" android:keyWidth="15%p" android:keyBackground="@drawable/key_special_background"/>
+    </Row>
+
+</Keyboard>

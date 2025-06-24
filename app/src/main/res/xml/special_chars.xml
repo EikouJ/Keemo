@@ -5,10 +5,6 @@
     android:horizontalGap="3dp"
     android:keyWidth="10%p">
 
-    <Row>
-        <!-- Ligne vide pour l'espacement -->
-    </Row>
-
     <!-- Ligne des chiffres - Toujours 10 touches -->
     <Row>
         <Key android:codes="49" android:keyLabel="1" android:keyEdgeFlags="left"/>
@@ -23,21 +19,21 @@
         <Key android:codes="48" android:keyLabel="0" android:keyEdgeFlags="right"/>
     </Row>
 
-    <!-- Ligne 1 symboles - 9 touches pour créer un centrage naturel -->
+    <!-- Ligne 1 symboles - 10 touches -->
     <Row>
         <Key android:codes="43" android:keyLabel="+" android:keyWidth="10%p"/>
         <Key android:codes="45" android:keyLabel="-" android:keyWidth="10%p"/>
         <Key android:codes="42" android:keyLabel="*" android:keyWidth="10%p"/>
-        <Key android:codes="47" android:keyLabel="/" android:keyWidth="10%p"/>
         <Key android:codes="47" android:keyLabel="/" android:keyWidth="10%p"/>
         <Key android:codes="61" android:keyLabel="=" android:keyWidth="10%p"/>
         <Key android:codes="37" android:keyLabel="%" android:keyWidth="10%p"/>
         <Key android:codes="40" android:keyLabel="(" android:keyWidth="10%p"/>
         <Key android:codes="41" android:keyLabel=")" android:keyWidth="10%p"/>
         <Key android:codes="64" android:keyLabel="@" android:keyWidth="10%p"/>
+        <Key android:codes="35" android:keyLabel="#" android:keyWidth="10%p"/>
     </Row>
 
-    <!-- Ligne 2 symboles - 8 touches pour centrage -->
+    <!-- Ligne 2 symboles - 10 touches -->
     <Row>
         <Key android:codes="39" android:keyLabel="'" android:keyWidth="10%p"/>
         <Key android:codes="34" android:keyLabel="&quot;" android:keyWidth="10%p"/>
@@ -45,33 +41,22 @@
         <Key android:codes="59" android:keyLabel=";" android:keyWidth="10%p"/>
         <Key android:codes="44" android:keyLabel="," android:keyWidth="10%p"/>
         <Key android:codes="46" android:keyLabel="." android:keyWidth="10%p"/>
-        <Key android:codes="46" android:keyLabel="." android:keyWidth="10%p"/>
-        <Key android:codes="37" android:keyLabel="%" android:keyWidth="10%p"/>
         <Key android:codes="63" android:keyLabel="?" android:keyWidth="10%p"/>
         <Key android:codes="33" android:keyLabel="!" android:keyWidth="10%p"/>
+        <Key android:codes="95" android:keyLabel="_" android:keyWidth="10%p"/>
+        <Key android:codes="38" android:keyLabel="&amp;" android:keyWidth="10%p"/>
     </Row>
 
-    <!-- Ligne 3 symboles - 7 touches pour centrage -->
-    <!--
+    <!-- Ligne de contrôle avec 1/2 et backspace -->
     <Row>
-        <Key android:codes="95" android:keyLabel="_" android:keyWidth="14.28%p"/>
-        <Key android:codes="38" android:keyLabel="&amp;" android:keyWidth="14.28%p"/>
-        <Key android:codes="35" android:keyLabel="#" android:keyWidth="14.28%p"/>
-        <Key android:codes="36" android:keyLabel="$" android:keyWidth="14.28%p"/>
-        <Key android:codes="91" android:keyLabel="[" android:keyWidth="14.28%p"/>
-        <Key android:codes="93" android:keyLabel="]" android:keyWidth="14.28%p"/>
-        <Key android:codes="60" android:keyLabel="&lt;" android:keyWidth="14.28%p"/>
-    </Row>
-    -->
-    <!-- Ligne de contrôle avec shift et backspace -->
-    <Row>
-        <Key android:codes="-1" android:keyLabel="⇧" android:keyWidth="15%p" android:keyBackground="@drawable/key_special_background"/>
-        <Key android:codes="62" android:keyLabel="&gt;" android:keyWidth="11.67%p"/>
-        <Key android:codes="123" android:keyLabel="{" android:keyWidth="11.67%p"/>
-        <Key android:codes="125" android:keyLabel="}" android:keyWidth="11.67%p"/>
-        <Key android:codes="124" android:keyLabel="|" android:keyWidth="11.67%p"/>
-        <Key android:codes="92" android:keyLabel="\" android:keyWidth="11.67%p"/>
-        <Key android:codes="92" android:keyLabel="\" android:keyWidth="11.67%p"/>
+        <Key android:codes="-101" android:keyLabel="1/2" android:keyWidth="15%p" android:keyBackground="@drawable/key_special_background"/>
+        <Key android:codes="36" android:keyLabel="$" android:keyWidth="10%p"/>
+        <Key android:codes="91" android:keyLabel="[" android:keyWidth="10%p"/>
+        <Key android:codes="93" android:keyLabel="]" android:keyWidth="10%p"/>
+        <Key android:codes="60" android:keyLabel="&lt;" android:keyWidth="10%p"/>
+        <Key android:codes="62" android:keyLabel="&gt;" android:keyWidth="10%p"/>
+        <Key android:codes="123" android:keyLabel="{" android:keyWidth="10%p"/>
+        <Key android:codes="125" android:keyLabel="}" android:keyWidth="10%p"/>
         <Key android:codes="-5" android:keyLabel="⌫" android:isRepeatable="true" android:keyWidth="15%p" android:keyBackground="@drawable/key_special_background"/>
     </Row>
 

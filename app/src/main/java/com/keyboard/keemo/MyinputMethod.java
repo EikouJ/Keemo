@@ -4,12 +4,15 @@ import android.inputmethodservice.InputMethodService;
 import android.inputmethodservice.Keyboard;
 import android.inputmethodservice.KeyboardView;
 import android.text.TextUtils;
+import android.util.Log;
+import android.media.AudioManager;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.view.animation.Animation;
 import android.view.animation.AlphaAnimation;
 import android.view.animation.AccelerateDecelerateInterpolator;
+import androidx.core.content.ContextCompat;
 import android.view.HapticFeedbackConstants;
 import android.os.Handler;
 import android.view.MotionEvent;
@@ -24,17 +27,16 @@ import java.lang.reflect.Field;
 import android.graphics.Paint;
 import android.util.TypedValue;
 import android.view.Gravity;
-import android.util.Log;
-import java.util.ArrayList;
 import java.util.List;
-import retrofit2.Retrofit;
-import retrofit2.converter.gson.GsonConverterFactory;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
-import retrofit2.http.Body;
-import retrofit2.http.POST;
+import com.keyboard.keemo.network.models.PredictionResponse;
+import com.keyboard.keemo.network.models.PredictionRequest;
+import com.keyboard.keemo.network.ApiClient;
 import android.widget.FrameLayout;
+import android.view.KeyEvent;
+import android.view.WindowManager;
 
 public class MyinputMethod extends InputMethodService implements KeyboardView.OnKeyboardActionListener {
 
@@ -43,41 +45,24 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
     private static final int KEYCODE_PREDICTION_2 = -21;
     private static final int KEYCODE_PREDICTION_3 = -22;
 
+    private TextView prediction1;
+    private TextView prediction2;
+    private TextView prediction3;
+
     // Variables pour les prédictions
-    private List<String> currentPredictions = new ArrayList<>();
+    private String[] currentPredictions = new String[]{"", "", ""};
+    private StringBuilder currentWord = new StringBuilder();
     private Handler predictionHandler = new Handler();
     private Runnable predictionRunnable;
-    private static final long PREDICTION_DELAY = 300; // ms
-
-    // Interface pour l'API de prédiction
-    interface PredictionApi {
-        @POST("/predict")
-        Call<PredictionResponse> getPredictions(@Body PredictionRequest request);
-    }
-
-    // Modèles de données
-    static class PredictionRequest {
-        String phrase;
-        int top_k = 3;
-
-        PredictionRequest(String phrase) {
-            this.phrase = phrase;
-        }
-    }
-
-    static class PredictionResponse {
-        List<Prediction> predictions;
-        String message;
-
-        static class Prediction {
-            String word;
-            double probability;
-        }
-    }
+    private String currentText = "";
+    private static final long PREDICTION_DELAY = 3; // ms
 
     private KeyboardView keyboardView;
     private Keyboard mainKeyboard;
     private Keyboard specialKeyboard;
+    private Keyboard specialKeyboard1;
+    private Keyboard specialKeyboard2;
+    private int currentSpecialPage = 1;
     private Keyboard aglcKeyboard;
     private Keyboard currentKeyboard;
 
@@ -96,8 +81,8 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
     private LinearLayout accentLayout;
 
     // Lettres accentuées pour 'a'
-    private String[] accentCharsA = {"à", "á", "â", "æ", "ä", "ā", "a\u011A"};
-    private String[] accentCharsAUpper = {"À", "Á", "Â", "Æ", "Ä", "Ā", "A\u011A"};
+    private String[] accentCharsA = {"à", "á", "â", "æ", "ä", "ā", "a\u030C"};
+    private String[] accentCharsAUpper = {"À", "Á", "Â", "Æ", "Ä", "Ā", "A\u030C"};
 
     // Lettres accentuées pour 'e'
     private String[] accentCharsE = {"è", "é", "ê", "ě", "ë", "ē"};
@@ -108,8 +93,8 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
     private String[] accentCharsIUpper = {"Ì", "Í", "Î", "Ï", "Ī", "Ǐ"};
 
     // Lettres accentuées pour 'o'
-    private String[] accentCharsO = {"ó", "ò", "œ", "ô", "ō", "ö", "o\u011A"};
-    private String[] accentCharsOUpper = {"Ó", "Ò", "Œ", "Ô", "Ō", "Ö", "O\u011A"};
+    private String[] accentCharsO = {"ó", "ò", "œ", "ô", "ō", "ö", "o\u030C"};
+    private String[] accentCharsOUpper = {"Ó", "Ò", "Œ", "Ô", "Ō", "Ö", "O\u030C"};
 
     // Lettres accentuées pour 'u'
     private String[] accentCharsU = {"ù", "ú", "û", "ü", "ū", "ǔ"};
@@ -139,69 +124,131 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
     private static final long LONG_PRESS_DELAY = 500;
 
     private FrameLayout mainContainer;
-    private View overlayView;
+    private android.util.Log Log;
 
     @Override
     public View onCreateInputView() {
         mainContainer = new FrameLayout(this);
 
-        // Initialiser tous les claviers
+        // 1. Initialisation des claviers (MODIFIER cette partie)
         mainKeyboard = new Keyboard(this, R.xml.keys);
-        specialKeyboard = new Keyboard(this, R.xml.special_chars);
+        specialKeyboard1 = new Keyboard(this, R.xml.special_chars);     // Page 1
+        specialKeyboard2 = new Keyboard(this, R.xml.special_chars_2);   // Page 2
         aglcKeyboard = new Keyboard(this, R.xml.aglc_keys);
 
-        keyboardView = (KeyboardView) getLayoutInflater().inflate(R.layout.keyboard_view, null);
-        mainContainer.addView(keyboardView);
-
-        // Initialiser les prédictions vides
-        currentPredictions.add("");
-        currentPredictions.add("");
-        currentPredictions.add("");
-        updatePredictionKeys();
-
-        // Application de la police JustSans
-        try {
-            Typeface justSansFont = Typeface.createFromAsset(getAssets(), "fonts/justsans.ttf");
-
-            // Appliquer la police via réflexion pour KeyboardView
-            Field typefaceField = KeyboardView.class.getDeclaredField("mKeyTextStyle");
-            typefaceField.setAccessible(true);
-            Paint paint = new Paint();
-            paint.setTypeface(justSansFont);
-            typefaceField.set(keyboardView, paint);
-        } catch (Exception e) {
-            // En cas d'échec, utiliser la police par défaut
-            e.printStackTrace();
-        }
-
-        // Créer l'overlay semi-transparent
-        overlayView = new View(this);
-        overlayView.setBackgroundColor(Color.argb(100, 0, 0, 0));
-        overlayView.setVisibility(View.GONE);
-        overlayView.setOnClickListener(v -> hideAccentPopup());
-        mainContainer.addView(overlayView, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-        ));
-
-        // Démarrer avec le clavier principal et vérifier si majuscules nécessaires
+        // Par défaut, specialKeyboard pointe vers la page 1
+        specialKeyboard = specialKeyboard1;
         currentKeyboard = mainKeyboard;
-        isAGLCMode = false;
-        isSpecialMode = false;
+        currentSpecialPage = 1;
 
-        // Vérifier si on doit commencer en majuscules
-        checkAndApplyAutoCapitalization();
 
+        // 2. Création de la barre de prédictions
+        LinearLayout predictionBar = new LinearLayout(this);
+        predictionBar.setOrientation(LinearLayout.HORIZONTAL);
+        predictionBar.setBackgroundColor(Color.parseColor("#E0E0E0"));
+        predictionBar.setPadding(dpToPx(8), dpToPx(6), dpToPx(8), dpToPx(6));
+        predictionBar.setGravity(Gravity.CENTER_VERTICAL);
+
+        // Paramètres de layout pour la barre
+        LinearLayout.LayoutParams barParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dpToPx(40)
+        );
+        predictionBar.setLayoutParams(barParams);
+
+        // 3. Création des TextViews de prédiction
+        LinearLayout.LayoutParams predictionParams = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.MATCH_PARENT, 1.0f
+        );
+        predictionParams.setMargins(dpToPx(4), 0, dpToPx(4), 0);
+
+        View.OnClickListener predictionClickListener = view -> {
+            InputConnection ic = getCurrentInputConnection();
+            if (ic != null) {
+                String word = ((TextView) view).getText().toString();
+                if (!TextUtils.isEmpty(word)) {
+                    ic.commitText( word + " ", 1);
+                    updateCurrentText(ic);
+                    requestNextWordPrediction();
+                }
+            }
+        };
+
+        // Prédiction 1
+        prediction1 = new TextView(this);
+        prediction1.setLayoutParams(predictionParams);
+        prediction1.setGravity(Gravity.CENTER);
+        prediction1.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        prediction1.setTextColor(Color.parseColor("#424242"));
+        prediction1.setBackground(createPredictionBackground());
+        prediction1.setPadding(dpToPx(8), dpToPx(4), dpToPx(8), dpToPx(4));
+        prediction1.setOnClickListener(predictionClickListener);
+        prediction1.setClickable(true);
+        prediction1.setFocusable(true);
+
+        // Prédiction 2
+        prediction2 = new TextView(this);
+        prediction2.setLayoutParams(predictionParams);
+        prediction2.setGravity(Gravity.CENTER);
+        prediction2.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        prediction2.setTextColor(Color.parseColor("#424242"));
+        prediction2.setBackground(createPredictionBackground());
+        prediction2.setPadding(dpToPx(8), dpToPx(4), dpToPx(8), dpToPx(4));
+        prediction2.setOnClickListener(predictionClickListener);
+        prediction2.setClickable(true);
+        prediction2.setFocusable(true);
+
+        // Prédiction 3
+        prediction3 = new TextView(this);
+        prediction3.setLayoutParams(predictionParams);
+        prediction3.setGravity(Gravity.CENTER);
+        prediction3.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        prediction3.setTextColor(Color.parseColor("#424242"));
+        prediction3.setBackground(createPredictionBackground());
+        prediction3.setPadding(dpToPx(8), dpToPx(4), dpToPx(8), dpToPx(4));
+        prediction3.setOnClickListener(predictionClickListener);
+        prediction3.setClickable(true);
+        prediction3.setFocusable(true);
+
+        // Ajout des prédictions à la barre
+        predictionBar.addView(prediction1);
+        predictionBar.addView(prediction2);
+        predictionBar.addView(prediction3);
+
+        // 4. Création du KeyboardView
+        keyboardView = (KeyboardView) getLayoutInflater().inflate(R.layout.keyboard_view, null);
         keyboardView.setKeyboard(currentKeyboard);
         keyboardView.setOnKeyboardActionListener(this);
         keyboardView.setPreviewEnabled(true);
-
-        // Désactiver les touches communes dans le clavier AGLC
-        disableCommonKeysInAGLC();
-
         keyboardView.setOnTouchListener((v, event) -> handleTouchEvent(event));
 
+        // 5. Assemblage final : barre de prédictions + clavier
+        LinearLayout mainLayout = new LinearLayout(this);
+        mainLayout.setOrientation(LinearLayout.VERTICAL);
+        mainLayout.addView(predictionBar);
+        mainLayout.addView(keyboardView);
+
+        mainContainer.addView(mainLayout);
         return mainContainer;
+    }
+
+    // Méthode helper pour créer le background des prédictions
+    private GradientDrawable createPredictionBackground() {
+        GradientDrawable background = new GradientDrawable();
+        background.setShape(GradientDrawable.RECTANGLE);
+        background.setColor(Color.parseColor("#F5F5F5"));
+        background.setCornerRadius(dpToPx(4));
+        background.setStroke(dpToPx(1), Color.parseColor("#CCCCCC"));
+        return background;
+    }
+
+    @Override
+    public void onWindowShown() {
+        super.onWindowShown();
+        if (accentPopup != null && isShowingAccents) {
+            accentPopup.dismiss();
+            isShowingAccents = false;
+        }
     }
 
     private void checkAndApplyAutoCapitalization() {
@@ -236,29 +283,6 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
         }
 
         return false;
-    }
-
-    private void disableCommonKeysInAGLC() {
-        if (aglcKeyboard == null) return;
-
-        // Codes des touches communes à désactiver dans AGLC
-        int[] commonKeyCodes = {
-                97, 114, 116, 121, 117, 105, 111, // a, r, t, y, u, i, o
-                115, 102, 104, 107, 108, 109, // s, f, h, k, l, m
-                118, 98 // v, b
-        };
-
-        for (Keyboard.Key key : aglcKeyboard.getKeys()) {
-            if (key.codes != null && key.codes.length > 0) {
-                for (int commonCode : commonKeyCodes) {
-                    if (key.codes[0] == commonCode) {
-                        // Désactiver la touche en modifiant son apparence
-                        key.codes[0] = -999; // Code inactif
-                        break;
-                    }
-                }
-            }
-        }
     }
 
     private boolean handleTouchEvent(MotionEvent event) {
@@ -306,22 +330,122 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
     private void updatePredictionKeys() {
         if (currentKeyboard == null || keyboardView == null) return;
 
+        if (prediction1 != null && prediction2 != null && prediction3 != null) {
+            prediction1.setText(currentPredictions[0]);
+            prediction2.setText(currentPredictions[1]);
+            prediction3.setText(currentPredictions[2]);
+
+            // Rendre visible ou invisible selon le contenu
+            prediction1.setVisibility(currentPredictions[0].isEmpty() ? View.INVISIBLE : View.VISIBLE);
+            prediction2.setVisibility(currentPredictions[1].isEmpty() ? View.INVISIBLE : View.VISIBLE);
+            prediction3.setVisibility(currentPredictions[2].isEmpty() ? View.INVISIBLE : View.VISIBLE);
+        }
+
         for (Keyboard.Key key : currentKeyboard.getKeys()) {
             if (key.codes == null || key.codes.length == 0) continue;
 
             int code = key.codes[0];
             if (code == KEYCODE_PREDICTION_1) {
-                key.label = currentPredictions.get(0);
-                key.text = currentPredictions.get(0);
+                key.label = currentPredictions[0];
+                key.text = currentPredictions[0];
             } else if (code == KEYCODE_PREDICTION_2) {
-                key.label = currentPredictions.get(1);
-                key.text = currentPredictions.get(1);
+                key.label = currentPredictions[1];
+                key.text = currentPredictions[1];
             } else if (code == KEYCODE_PREDICTION_3) {
-                key.label = currentPredictions.get(2);
-                key.text = currentPredictions.get(2);
+                key.label = currentPredictions[2];
+                key.text = currentPredictions[2];
             }
         }
         keyboardView.invalidateAllKeys();
+    }
+
+    private void resetPredictions() {
+        currentPredictions[0] = "";
+        currentPredictions[1] = "";
+        currentPredictions[2] = "";
+        updatePredictionKeys();
+    }
+
+    @Override
+    public void onStartInputView(EditorInfo info, boolean restarting) {
+        super.onStartInputView(info, restarting);
+        resetPredictions();
+
+        // Récupérer le texte existant pour les prédictions initiales
+        InputConnection ic = getCurrentInputConnection();
+        if (ic != null) {
+            CharSequence currentText = ic.getTextBeforeCursor(100, 0);
+            if (TextUtils.isEmpty(currentText) || currentText.toString().trim().isEmpty()) {
+                resetPredictions(); // ← vide tout
+            } else {
+                requestNextWordPrediction();
+            }
+
+        }
+    }
+
+    private void switchToSpecialPage1() {
+        if (specialKeyboard == specialKeyboard1) return;
+
+        specialKeyboard = specialKeyboard1;
+        currentSpecialPage = 1;
+
+        keyboardView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+        animateKeyboardTransition(() -> {
+            currentKeyboard = specialKeyboard1;
+            keyboardView.setKeyboard(currentKeyboard);
+            keyboardView.invalidateAllKeys();
+        });
+    }
+
+    private void switchToSpecialPage2() {
+        if (specialKeyboard == specialKeyboard2) return;
+
+        specialKeyboard = specialKeyboard2;
+        currentSpecialPage = 2;
+
+        keyboardView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+        animateKeyboardTransition(() -> {
+            currentKeyboard = specialKeyboard2;
+            keyboardView.setKeyboard(currentKeyboard);
+            keyboardView.invalidateAllKeys();
+        });
+    }
+
+    private void requestNextWordPrediction() {
+        predictionHandler.removeCallbacksAndMessages(null);
+
+        PredictionRequest request = new PredictionRequest(currentText.trim(), 3);
+
+        ApiClient.INSTANCE.getPredictionApi().getPredictions(request).enqueue(new Callback<PredictionResponse>() {
+            @Override
+            public void onResponse(Call<PredictionResponse> call, Response<PredictionResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<PredictionResponse.Prediction> predictions = response.body().predictions;
+
+                    if (predictions != null && !predictions.isEmpty()) {
+                        for (int i = 0; i < Math.min(3, predictions.size()); i++) {
+                            currentPredictions[i] = predictions.get(i).word;
+                        }
+                        updatePredictionKeys();
+                    } else {
+                        resetPredictions();
+                    }
+                } else {
+                    resetPredictions();
+                }
+                if (TextUtils.isEmpty(currentText.trim())) {
+                    resetPredictions();
+                    return;
+                }
+
+            }
+
+            @Override
+            public void onFailure(Call<PredictionResponse> call, Throwable t) {
+                resetPredictions();
+            }
+        });
     }
 
     private int getKeyIndex(float x, float y) {
@@ -335,84 +459,6 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
             }
         }
         return -1;
-    }
-
-    private void fetchPredictions(String input) {
-        // Annuler la requête précédente
-        predictionHandler.removeCallbacks(predictionRunnable);
-
-        predictionRunnable = new Runnable() {
-            @Override
-            public void run() {
-                if (TextUtils.isEmpty(input)) {
-                    resetPredictions();
-                    return;
-                }
-
-                // Créer le client Retrofit
-                Retrofit retrofit = new Retrofit.Builder()
-                        .baseUrl("http://10.0.2.2:8000") // URL de votre API
-                        .addConverterFactory(GsonConverterFactory.create())
-                        .build();
-
-                PredictionApi api = retrofit.create(PredictionApi.class);
-                PredictionRequest request = new PredictionRequest(input);
-
-                api.getPredictions(request).enqueue(new Callback<PredictionResponse>() {
-                    @Override
-                    public void onResponse(Call<PredictionResponse> call, Response<PredictionResponse> response) {
-                        if (response.isSuccessful() && response.body() != null) {
-                            List<PredictionResponse.Prediction> predictions = response.body().predictions;
-                            if (predictions != null && !predictions.isEmpty()) {
-                                currentPredictions.clear();
-                                for (int i = 0; i < 3; i++) {
-                                    if (i < predictions.size()) {
-                                        currentPredictions.add(predictions.get(i).word);
-                                    } else {
-                                        currentPredictions.add("");
-                                    }
-                                }
-                                updatePredictionKeys();
-                                return;
-                            }
-                        }
-                        resetPredictions();
-                    }
-
-                    @Override
-                    public void onFailure(Call<PredictionResponse> call, Throwable t) {
-                        Log.e("Prediction", "API error: " + t.getMessage());
-                        resetPredictions();
-                    }
-                });
-            }
-        };
-
-        // Délai pour éviter les requêtes trop fréquentes
-        predictionHandler.postDelayed(predictionRunnable, PREDICTION_DELAY);
-    }
-
-    @Override
-    public void onStartInputView(EditorInfo info, boolean restarting) {
-        super.onStartInputView(info, restarting);
-        resetPredictions();
-
-        // Récupérer le texte existant pour les prédictions initiales
-        InputConnection ic = getCurrentInputConnection();
-        if (ic != null) {
-            CharSequence currentText = ic.getTextBeforeCursor(100, 0);
-            if (currentText != null) {
-                fetchPredictions(currentText.toString());
-            }
-        }
-    }
-
-    private void resetPredictions() {
-        currentPredictions.clear();
-        currentPredictions.add("");
-        currentPredictions.add("");
-        currentPredictions.add("");
-        updatePredictionKeys();
     }
 
     private boolean isAccentKey(int keyIndex) {
@@ -544,11 +590,35 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
                 View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
         );
 
+        int popupWidth = accentLayout.getMeasuredWidth();
         int popupHeight = accentLayout.getMeasuredHeight();
-        int offsetX = key.x + (key.width / 2);
-        int offsetY = key.y - popupHeight - dpToPx(8);
 
-        accentPopup.showAsDropDown(keyboardView, offsetX, offsetY);
+        // Calculer la position relative au KeyboardView - centré horizontalement sur la touche
+        int popupX = key.x + (key.width / 2) - (popupWidth / 2);
+        // Positionner au-dessus de la touche avec un petit espace
+        int popupY = key.y - popupHeight - dpToPx(12);
+
+        // Ajuster si le popup dépasse à gauche
+        if (popupX < dpToPx(4)) {
+            popupX = dpToPx(4);
+        }
+        // Ajuster si le popup dépasse à droite
+        else if (popupX + popupWidth > keyboardView.getWidth() - dpToPx(4)) {
+            popupX = keyboardView.getWidth() - popupWidth - dpToPx(4);
+        }
+
+        // Si le popup dépasse en haut, le garder quand même au-dessus mais ajuster
+        if (popupY < dpToPx(4)) {
+            popupY = dpToPx(4);
+        }
+
+        // Afficher le popup en position relative au KeyboardView
+        accentPopup.showAtLocation(
+                keyboardView,
+                Gravity.TOP | Gravity.LEFT,
+                popupX,
+                popupY
+        );
     }
 
     private TextView createAccentTextView(String character, boolean isSelected) {
@@ -650,13 +720,35 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
         }
     }
 
+    private void handleBackspace(InputConnection ic) {
+        CharSequence selectedText = ic.getSelectedText(0);
+
+        if (selectedText != null && selectedText.length() > 0) {
+            ic.commitText("", 1);
+        } else {
+            ic.deleteSurroundingText(1, 0);
+        }
+
+        // Met à jour la phrase actuelle
+        updateCurrentText(ic);
+
+        // Lancer nouvelle prédiction
+        requestNextWordPrediction();
+    }
+
     @Override
     public void onKey(int primaryCode, int[] keyCodes) {
+
+        AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
+        if (am != null) {
+            am.playSoundEffect(AudioManager.FX_KEYPRESS_STANDARD);
+        }
+
         if (isShowingAccents) return;
 
         InputConnection inputConnection = getCurrentInputConnection();
         if (inputConnection == null) return;
-
+        Log.d("KEY", "Pressed key code: " + primaryCode);
         // Ignorer les touches désactivées
         if (primaryCode == -999) return;
 
@@ -670,29 +762,24 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
             else if (primaryCode == KEYCODE_PREDICTION_2) index = 1;
             else if (primaryCode == KEYCODE_PREDICTION_3) index = 2;
 
-            if (index >= 0 && index < currentPredictions.size() &&
-                    !TextUtils.isEmpty(currentPredictions.get(index))) {
+            if (index >= 0 && index < currentPredictions.length &&
+                    !TextUtils.isEmpty(currentPredictions[index])) {
 
-                String word = currentPredictions.get(index);
-                inputConnection.commitText(word, 1);
+                String word = currentPredictions[index];
 
-                // Réinitialiser les prédictions après sélection
-                resetPredictions();
+                // ✅ Ajoute un espace avant le mot prédit
+                inputConnection.commitText(" " + word + " ", 1);
+
+                updateCurrentText(inputConnection);
+                requestNextWordPrediction();
             }
+
             return;
         }
 
         switch (primaryCode) {
             case Keyboard.KEYCODE_DELETE:
-                CharSequence selectedText = inputConnection.getSelectedText(0);
-                if (TextUtils.isEmpty(selectedText)) {
-                    inputConnection.deleteSurroundingText(1, 0);
-                } else {
-                    inputConnection.commitText("", 1);
-                }
-
-                // Vérifier si on doit activer les majuscules après suppression
-                checkAndApplyAutoCapitalization();
+                handleBackspace(inputConnection);
                 break;
 
             case Keyboard.KEYCODE_SHIFT:
@@ -701,7 +788,7 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
 
             case Keyboard.KEYCODE_DONE:
                 inputConnection.sendKeyEvent(
-                        new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_ENTER)
+                        new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER)
                 );
                 // Activer les majuscules après un retour à la ligne
                 isCaps = true;
@@ -717,7 +804,7 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
                 break;
 
             case KEYCODE_SWITCH_TO_AGLC:
-                // Alternance entre clavier principal et AGLC
+                // Logique de bascule améliorée
                 if (currentKeyboard == aglcKeyboard) {
                     switchToMainKeyboard();
                 } else {
@@ -725,50 +812,68 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
                 }
                 break;
 
-            case 32: // Espace
-                inputConnection.commitText(" ", 1);
+            case -101: // Code pour "1/2" - aller à la page 2
+                if (isSpecialMode && currentSpecialPage == 1) {
+                    switchToSpecialPage2();
+                }
                 break;
 
-            case 46: // Point
-                inputConnection.commitText(".", 1);
-                // Activer les majuscules après un point
-                isCaps = true;
-                updateShiftKey();
+            case -102: // Code pour "2/2" - retourner à la page 1
+                if (isSpecialMode && currentSpecialPage == 2) {
+                    switchToSpecialPage1();
+                }
+                break;
+
+            case 32: // Espace
+                handleSpace(inputConnection);
                 break;
 
             default:
                 char code = (char) primaryCode;
                 if (Character.isLetter(code) && !isSpecialMode) {
-                    // Ne pas modifier la casse en mode AGLC
-                    if (!isAGLCMode) {
-                        code = (isCaps || isCapsLock) ?
-                                Character.toUpperCase(code) :
-                                Character.toLowerCase(code);
-                    }
+
                 }
                 inputConnection.commitText(String.valueOf(code), 1);
-
-                // Ne pas désactiver Caps Lock en mode AGLC
-                if (!isAGLCMode && isCaps && !isCapsLock && !isSpecialMode) {
+                if (isCaps && !isCapsLock && !isSpecialMode && !isAGLCMode) {
                     isCaps = false;
                     updateShiftKey();
                 }
+                currentWord.append(code);
+                updateCurrentText(inputConnection); // ← met à jour currentText
+                requestNextWordPrediction();        // ← prédit le mot suivant
                 break;
         }
+    }
 
-        // Après avoir traité la touche, récupérer le texte pour les prédictions
-        CharSequence currentText = inputConnection.getTextBeforeCursor(100, 0);
-        if (currentText != null) {
-            fetchPredictions(currentText.toString());
+    private void handleSpace(InputConnection ic) {
+        ic.commitText(" ", 1);
+
+        // Reconstruire la phrase avant le curseur
+        CharSequence beforeCursor = ic.getTextBeforeCursor(200, 0);
+        if (beforeCursor != null) {
+            currentText = beforeCursor.toString();
+        } else {
+            currentText = "";
         }
+
+        currentWord.setLength(0); // plus besoin de currentWord pour cette logique
+
+        requestNextWordPrediction();  // nouvelle fonction pour prédire le mot suivant
+    }
+
+    private void updateCurrentText(InputConnection ic) {
+        CharSequence textBeforeCursor = ic.getTextBeforeCursor(200, 0);
+        this.currentText = textBeforeCursor != null ? textBeforeCursor.toString() : "";
     }
 
     private void switchToAGLCKeyboard() {
         if (currentKeyboard == aglcKeyboard) return;
-        keyboardView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
 
+        // Mettre à jour l'état avant de changer de clavier
         isAGLCMode = true;
         isSpecialMode = false;
+
+        keyboardView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
         animateKeyboardTransition(() -> {
             currentKeyboard = aglcKeyboard;
             keyboardView.setKeyboard(currentKeyboard);
@@ -776,12 +881,25 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
         });
     }
 
+    // Optionnel : Méthode helper pour obtenir le clavier spécial actuel
+    private Keyboard getCurrentSpecialKeyboard() {
+        return currentSpecialPage == 1 ? specialKeyboard1 : specialKeyboard2;
+    }
+
+    // Optionnel : Méthode pour reset la page des symboles quand on quitte le mode spécial
+    private void resetSpecialKeyboardPage() {
+        currentSpecialPage = 1;
+        specialKeyboard = specialKeyboard1;
+    }
     private void switchToMainKeyboard() {
         if (currentKeyboard == mainKeyboard) return;
-        keyboardView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
 
+        // Réinitialiser les états
         isAGLCMode = false;
         isSpecialMode = false;
+        resetSpecialKeyboardPage(); // AJOUTER cette ligne
+
+        keyboardView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
         animateKeyboardTransition(() -> {
             currentKeyboard = mainKeyboard;
             keyboardView.setKeyboard(currentKeyboard);
@@ -790,16 +908,21 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
     }
 
     private void switchToSpecialKeyboard() {
-        if (currentKeyboard == specialKeyboard) return;
-        keyboardView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+        // Si on n'est pas en mode spécial, aller à la page 1
+        if (!isSpecialMode) {
+            specialKeyboard = specialKeyboard1;
+            currentSpecialPage = 1;
 
-        isAGLCMode = false;
-        isSpecialMode = true;
-        animateKeyboardTransition(() -> {
-            currentKeyboard = specialKeyboard;
-            keyboardView.setKeyboard(currentKeyboard);
-            keyboardView.invalidateAllKeys();
-        });
+            isAGLCMode = false;
+            isSpecialMode = true;
+
+            keyboardView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+            animateKeyboardTransition(() -> {
+                currentKeyboard = specialKeyboard1;
+                keyboardView.setKeyboard(currentKeyboard);
+                keyboardView.invalidateAllKeys();
+            });
+        }
     }
 
     private void animateKeyboardTransition(Runnable switchAction) {
@@ -839,12 +962,13 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
 
     private void handleShiftToggle() {
         if (isSpecialMode || isAGLCMode) return;
-
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastShiftTime < 500) {
+            // Double clic → CapsLock
             isCapsLock = !isCapsLock;
             isCaps = isCapsLock;
         } else {
+            // Clic simple → Maj temporaire
             if (isCapsLock) {
                 isCapsLock = false;
                 isCaps = false;
@@ -856,28 +980,44 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
         updateShiftKey();
     }
 
-    private void updateShiftKey() {
-        if (isSpecialMode || isAGLCMode) return;
-
-        for (Keyboard.Key key : currentKeyboard.getKeys()) {
-            if (key.label != null && key.label.length() == 1) {
-                char c = key.label.charAt(0);
-                if (Character.isLetter(c)) {
-                    char updatedChar = (isCaps || isCapsLock) ?
-                            Character.toUpperCase(c) : Character.toLowerCase(c);
-                    key.label = String.valueOf(updatedChar);
-                    key.codes[0] = (int) updatedChar;
-                }
-            } else if (key.codes[0] == Keyboard.KEYCODE_SHIFT) {
-                if (isCapsLock) {
-                    key.label = "⇪";
-                } else if (isCaps) {
-                    key.label = "⇧";
+    private void updateCurrentWord() {
+        InputConnection ic = getCurrentInputConnection();
+        if (ic != null) {
+            CharSequence beforeCursor = ic.getTextBeforeCursor(30, 0);
+            if (beforeCursor != null) {
+                String[] words = beforeCursor.toString().split("\\s+");
+                if (words.length > 0) {
+                    currentWord.setLength(0);
+                    currentWord.append(words[words.length - 1]);
                 } else {
-                    key.label = "SHIFT";
+                    currentWord.setLength(0);
                 }
             }
         }
+    }
+
+    private void updateShiftKey() {
+        if (currentKeyboard == null) return;
+
+        for (Keyboard.Key key : currentKeyboard.getKeys()) {
+            if (key.codes[0] == Keyboard.KEYCODE_SHIFT) {
+                if (isCapsLock) {
+                    key.icon = ContextCompat.getDrawable(this, R.drawable.ic_shift_filled);
+                } else {
+                    key.icon = ContextCompat.getDrawable(this, R.drawable.ic_shift_outline);
+                }
+            } else if (key.label != null && key.label.length() == 1) {
+                char c = key.label.charAt(0);
+                if (Character.isLetter(c)) {
+                    char updatedChar = (isCaps || isCapsLock)
+                            ? Character.toUpperCase(c)
+                            : Character.toLowerCase(c);
+                    key.label = String.valueOf(updatedChar);
+                    key.codes[0] = (int) updatedChar;
+                }
+            }
+        }
+
         keyboardView.invalidateAllKeys();
     }
 
@@ -932,4 +1072,6 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
     public void swipeUp() {
         // Pas d'action
     }
+
+
 }

@@ -5,28 +5,6 @@
     android:horizontalGap="3dp"
     android:keyWidth="10%p">
 
-    <!-- Ligne des prédictions -->
-    <Row>
-        <Key android:codes="-20"
-            android:keyLabel="pred1"
-            android:keyBackground="@drawable/suggestion_background"
-            android:keyTextSize="18sp"
-            android:keyWidth="33%p"
-            android:keyEdgeFlags="left"/>
-
-        <Key android:codes="-21"
-            android:keyLabel="pred2"
-            android:keyBackground="@drawable/suggestion_background"
-            android:keyTextSize="18sp"
-            android:keyWidth="34%p"/>
-
-        <Key android:codes="-22"
-            android:keyLabel="pred3"
-            android:keyBackground="@drawable/suggestion_background"
-            android:keyTextSize="18sp"
-            android:keyWidth="33%p"
-            android:keyEdgeFlags="right"/>
-    </Row>
 
     <!-- Chiffres -->
     <Row>
@@ -72,7 +50,13 @@
 
     <!-- Ligne 3 -->
     <Row>
-        <Key android:codes="-1" android:keyLabel="⇧" android:keyTextSize="20sp" android:keyEdgeFlags="left" android:keyWidth="15%p" android:keyBackground="@drawable/key_special_background"/>
+        <Key
+            android:codes="-1"
+            android:keyIcon="@drawable/ic_shift_outline"
+            android:keyEdgeFlags="left"
+            android:keyWidth="10%p"
+            android:keyHeight="45dp"/>
+
         <Key android:codes="119" android:keyLabel="w" android:keyTextSize="20sp" android:keyWidth="11.67%p"/>
         <Key android:codes="120" android:keyLabel="x" android:keyTextSize="20sp" android:keyWidth="11.67%p"/>
         <Key android:codes="99" android:keyLabel="c" android:keyTextSize="20sp" android:keyWidth="11.67%p"/>

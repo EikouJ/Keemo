@@ -5,8 +5,6 @@
     android:horizontalGap="3dp"
     android:keyWidth="10%p">
 
-    <Row><!-- Ligne vide pour l'espacement --></Row>
-
     <!-- Chiffres -->
     <Row>
         <Key android:codes="49" android:keyLabel="1" android:keyTextSize="25sp" android:keyEdgeFlags="left"/>
@@ -51,7 +49,13 @@
 
     <!-- Ligne 3 - AGLC -->
     <Row>
-        <Key android:codes="-1" android:keyLabel="⇧" android:keyTextSize="20sp" android:keyEdgeFlags="left" android:keyWidth="15%p" android:keyBackground="@drawable/key_special_background"/>
+        <Key
+            android:codes="-1"
+            android:keyIcon="@drawable/ic_shift_outline"
+            android:keyEdgeFlags="left"
+            android:keyWidth="10%p"
+            android:keyHeight="45dp"/>
+
         <Key android:codes="7813" android:keyLabel="ẅ" android:keyTextSize="20sp" android:keyWidth="11.67%p"/>
         <Key android:codes="331" android:keyLabel="ŋ" android:keyTextSize="20sp" android:keyWidth="11.67%p"/>
         <Key android:codes="643" android:keyLabel="ʃ" android:keyTextSize="20sp" android:keyWidth="11.67%p"/>

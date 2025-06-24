@@ -1,11 +1,11 @@
 package com.keyboard.keemo.network.models
 
 data class PredictionResponse(
-    val predictions: List<Prediction>?,
-    val message: String?
+    @JvmField val predictions: List<Prediction>?,
+    @JvmField val message: String?
 ) {
     data class Prediction(
-        val word: String,
-        val probability: Double
+        @JvmField val word: String,
+        @JvmField val probability: Double
     )
 }
