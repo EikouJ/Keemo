@@ -33,6 +33,7 @@ import retrofit2.Callback;
 import retrofit2.Response;
 import com.keyboard.keemo.network.models.PredictionResponse;
 import com.keyboard.keemo.network.models.PredictionRequest;
+import com.keyboard.keemo.network.models.AutocompletionRequest;
 import com.keyboard.keemo.network.ApiClient;
 import android.widget.FrameLayout;
 import android.view.KeyEvent;
@@ -56,7 +57,6 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
     private Runnable predictionRunnable;
     private String currentText = "";
     private static final long PREDICTION_DELAY = 3; // ms
-
     private KeyboardView keyboardView;
     private Keyboard mainKeyboard;
     private Keyboard specialKeyboard;
@@ -116,6 +116,10 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
     private final String[] accentCharsW = {"ẁ", "ẃ", "ŵ", "ẅ", "w̄", "w\u030C"};
     private final String[] accentCharsWUpper = {"Ẁ", "Ẃ", "Ŵ", "Ẅ", "W̄", "W\u030C"};
 
+    // n
+    private final String[] accentCharsN = {"ṅ"};
+    private final String[] accentCharsNUpper = {"Ṅ"};
+
     private char currentAccentLetter = 0;
 
     private static final int KEYCODE_SWITCH_TO_SPECIAL = -11;
@@ -130,51 +134,55 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
     public View onCreateInputView() {
         mainContainer = new FrameLayout(this);
 
-        // 1. Initialisation des claviers (MODIFIER cette partie)
+        // Initialisation des claviers
         mainKeyboard = new Keyboard(this, R.xml.keys);
-        specialKeyboard1 = new Keyboard(this, R.xml.special_chars);     // Page 1
-        specialKeyboard2 = new Keyboard(this, R.xml.special_chars_2);   // Page 2
+        specialKeyboard1 = new Keyboard(this, R.xml.special_chars);
+        specialKeyboard2 = new Keyboard(this, R.xml.special_chars_2);
         aglcKeyboard = new Keyboard(this, R.xml.aglc_keys);
 
-        // Par défaut, specialKeyboard pointe vers la page 1
         specialKeyboard = specialKeyboard1;
         currentKeyboard = mainKeyboard;
         currentSpecialPage = 1;
 
-
-        // 2. Création de la barre de prédictions
+        // Création de la barre de prédictions
         LinearLayout predictionBar = new LinearLayout(this);
         predictionBar.setOrientation(LinearLayout.HORIZONTAL);
         predictionBar.setBackgroundColor(Color.parseColor("#E0E0E0"));
         predictionBar.setPadding(dpToPx(8), dpToPx(6), dpToPx(8), dpToPx(6));
         predictionBar.setGravity(Gravity.CENTER_VERTICAL);
 
-        // Paramètres de layout pour la barre
         LinearLayout.LayoutParams barParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dpToPx(40)
         );
         predictionBar.setLayoutParams(barParams);
 
-        // 3. Création des TextViews de prédiction
         LinearLayout.LayoutParams predictionParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.MATCH_PARENT, 1.0f
         );
         predictionParams.setMargins(dpToPx(4), 0, dpToPx(4), 0);
 
+        // 🔥 Ajoute ton gestionnaire de clics ici
         View.OnClickListener predictionClickListener = view -> {
             InputConnection ic = getCurrentInputConnection();
             if (ic != null) {
                 String word = ((TextView) view).getText().toString();
                 if (!TextUtils.isEmpty(word)) {
-                    ic.commitText( word + " ", 1);
+                    String currentWord = getCurrentWord();
+                    if (!TextUtils.isEmpty(currentWord) && !(currentText != null && currentText.endsWith(" "))) {
+                        // 🔥 Supprime le mot en cours si c'est de l'autocomplétion
+                        for (int i = 0; i < currentWord.length(); i++) {
+                            ic.deleteSurroundingText(1, 0);
+                        }
+                    }
+                    ic.commitText(word + " ", 1);
                     updateCurrentText(ic);
                     requestNextWordPrediction();
                 }
             }
         };
 
-        // Prédiction 1
+        // Création des prédictions
         prediction1 = new TextView(this);
         prediction1.setLayoutParams(predictionParams);
         prediction1.setGravity(Gravity.CENTER);
@@ -183,10 +191,7 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
         prediction1.setBackground(createPredictionBackground());
         prediction1.setPadding(dpToPx(8), dpToPx(4), dpToPx(8), dpToPx(4));
         prediction1.setOnClickListener(predictionClickListener);
-        prediction1.setClickable(true);
-        prediction1.setFocusable(true);
 
-        // Prédiction 2
         prediction2 = new TextView(this);
         prediction2.setLayoutParams(predictionParams);
         prediction2.setGravity(Gravity.CENTER);
@@ -195,10 +200,7 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
         prediction2.setBackground(createPredictionBackground());
         prediction2.setPadding(dpToPx(8), dpToPx(4), dpToPx(8), dpToPx(4));
         prediction2.setOnClickListener(predictionClickListener);
-        prediction2.setClickable(true);
-        prediction2.setFocusable(true);
 
-        // Prédiction 3
         prediction3 = new TextView(this);
         prediction3.setLayoutParams(predictionParams);
         prediction3.setGravity(Gravity.CENTER);
@@ -207,22 +209,19 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
         prediction3.setBackground(createPredictionBackground());
         prediction3.setPadding(dpToPx(8), dpToPx(4), dpToPx(8), dpToPx(4));
         prediction3.setOnClickListener(predictionClickListener);
-        prediction3.setClickable(true);
-        prediction3.setFocusable(true);
 
-        // Ajout des prédictions à la barre
         predictionBar.addView(prediction1);
         predictionBar.addView(prediction2);
         predictionBar.addView(prediction3);
 
-        // 4. Création du KeyboardView
+        // Création du KeyboardView
         keyboardView = (KeyboardView) getLayoutInflater().inflate(R.layout.keyboard_view, null);
         keyboardView.setKeyboard(currentKeyboard);
         keyboardView.setOnKeyboardActionListener(this);
         keyboardView.setPreviewEnabled(true);
         keyboardView.setOnTouchListener((v, event) -> handleTouchEvent(event));
 
-        // 5. Assemblage final : barre de prédictions + clavier
+        // Assemblage
         LinearLayout mainLayout = new LinearLayout(this);
         mainLayout.setOrientation(LinearLayout.VERTICAL);
         mainLayout.addView(predictionBar);
@@ -374,11 +373,11 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
         // Récupérer le texte existant pour les prédictions initiales
         InputConnection ic = getCurrentInputConnection();
         if (ic != null) {
-            CharSequence currentText = ic.getTextBeforeCursor(100, 0);
-            if (TextUtils.isEmpty(currentText) || currentText.toString().trim().isEmpty()) {
-                resetPredictions(); // ← vide tout
-            } else {
+            CharSequence beforeCursor = ic.getTextBeforeCursor(100, 0);
+            if (beforeCursor != null && beforeCursor.toString().trim().endsWith(" ")) {
                 requestNextWordPrediction();
+            } else {
+                requestCurrentWordPrediction();
             }
 
         }
@@ -412,12 +411,18 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
         });
     }
 
-    private void requestNextWordPrediction() {
+    private void requestCurrentWordPrediction() {
         predictionHandler.removeCallbacksAndMessages(null);
 
-        PredictionRequest request = new PredictionRequest(currentText.trim(), 3);
+        String currentWord = getCurrentWord();
 
-        ApiClient.INSTANCE.getPredictionApi().getPredictions(request).enqueue(new Callback<PredictionResponse>() {
+        if (TextUtils.isEmpty(currentWord)) {
+            resetPredictions();
+            return;
+        }
+
+        AutocompletionRequest request = new AutocompletionRequest(currentWord, 3);
+        ApiClient.INSTANCE.getPredictionApi().getAutocompletion(request).enqueue(new Callback<PredictionResponse>() {
             @Override
             public void onResponse(Call<PredictionResponse> call, Response<PredictionResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
@@ -434,11 +439,6 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
                 } else {
                     resetPredictions();
                 }
-                if (TextUtils.isEmpty(currentText.trim())) {
-                    resetPredictions();
-                    return;
-                }
-
             }
 
             @Override
@@ -447,6 +447,87 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
             }
         });
     }
+
+    private String getCurrentWord() {
+        InputConnection ic = getCurrentInputConnection();
+        if (ic == null) return "";
+
+        CharSequence beforeCursor = ic.getTextBeforeCursor(50, 0);
+        if (beforeCursor == null) return "";
+
+        String[] words = beforeCursor.toString().split("\\s+");
+        if (words.length == 0) return "";
+
+        return words[words.length - 1];
+    }
+
+    private void requestNextWordPrediction() {
+        predictionHandler.removeCallbacksAndMessages(null);
+
+        String context = currentText != null ? currentText.trim() : "";
+        if (TextUtils.isEmpty(context)) {
+            resetPredictions();
+            return;
+        }
+
+        ApiClient.INSTANCE.getPredictionApi().getNextWordPrediction(
+                new PredictionRequest(context, 3)
+        ).enqueue(new Callback<PredictionResponse>() {
+            @Override
+            public void onResponse(Call<PredictionResponse> call, Response<PredictionResponse> response) {
+                handlePredictionResponse(response);
+            }
+
+            @Override
+            public void onFailure(Call<PredictionResponse> call, Throwable t) {
+                resetPredictions();
+            }
+        });
+    }
+
+    private void requestAutocompletion() {
+        predictionHandler.removeCallbacksAndMessages(null);
+
+        String word = getCurrentWord();
+        if (TextUtils.isEmpty(word)) {
+            resetPredictions();
+            return;
+        }
+
+        AutocompletionRequest request = new AutocompletionRequest(word, 3);
+
+        ApiClient.INSTANCE.getPredictionApi().getAutocompletion(request).enqueue(new Callback<PredictionResponse>() {
+            @Override
+            public void onResponse(Call<PredictionResponse> call, Response<PredictionResponse> response) {
+                handlePredictionResponse(response);
+            }
+
+            @Override
+            public void onFailure(Call<PredictionResponse> call, Throwable t) {
+                resetPredictions();
+            }
+        });
+    }
+
+
+    private void handlePredictionResponse(Response<PredictionResponse> response) {
+        if (response.isSuccessful() && response.body() != null) {
+            List<PredictionResponse.Prediction> predictions = response.body().predictions;
+
+            if (predictions != null && !predictions.isEmpty()) {
+                for (int i = 0; i < Math.min(3, predictions.size()); i++) {
+                    currentPredictions[i] = predictions.get(i).word;
+                }
+                updatePredictionKeys();
+            } else {
+                resetPredictions();
+            }
+        } else {
+            resetPredictions();
+        }
+    }
+
+
 
     private int getKeyIndex(float x, float y) {
         if (currentKeyboard == null) return -1;
@@ -475,7 +556,8 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
                 (code == 603 || code == 399) ||  // ɛ/Ɛ
                 (code == 601 || code == 398) ||  // ə/Ə
                 (code == 596 || code == 390) ||  // ɔ/Ɔ
-                (code == 7813 || code == 7812);  // ẅ/Ẅ
+                (code == 7813 || code == 7812) || // ẅ/Ẅ
+                (code == 110 || code == 78);     // n/N
     }
 
     private char getAccentLetter(int keyIndex) {
@@ -494,6 +576,8 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
             case 601: case 398: return 'ə';
             case 596: case 390: return 'ɔ';
             case 7813: case 7812: return 'ẅ';
+            case 110: case 78: return 'ṅ';
+
             default: return 0;
         }
     }
@@ -537,6 +621,8 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
                 return (isCaps || isCapsLock) ? accentCharsƆUpper : accentCharsƆ;
             case 'ẅ':
                 return (isCaps || isCapsLock) ? accentCharsWUpper : accentCharsW;
+            case 'ṅ':
+                return (isCaps || isCapsLock) ? accentCharsNUpper : accentCharsN;
             default:
                 return new String[0];
         }
@@ -830,23 +916,30 @@ public class MyinputMethod extends InputMethodService implements KeyboardView.On
 
             default:
                 char code = (char) primaryCode;
-                if (Character.isLetter(code) && !isSpecialMode) {
-
-                }
                 inputConnection.commitText(String.valueOf(code), 1);
+
                 if (isCaps && !isCapsLock && !isSpecialMode && !isAGLCMode) {
                     isCaps = false;
                     updateShiftKey();
                 }
-                currentWord.append(code);
-                updateCurrentText(inputConnection); // ← met à jour currentText
-                requestNextWordPrediction();        // ← prédit le mot suivant
-                break;
+
+                updateCurrentText(inputConnection);
+
+                if (currentText != null && currentText.toString().endsWith(" ")) {
+                    requestNextWordPrediction(); // 🔥 prédiction du mot suivant
+                } else {
+                    requestAutocompletion();     // 🔥 autocomplétion
+                }
+
+
         }
     }
 
     private void handleSpace(InputConnection ic) {
         ic.commitText(" ", 1);
+
+        updateCurrentText(ic); // Important avant la prédiction
+        requestNextWordPrediction();
 
         // Reconstruire la phrase avant le curseur
         CharSequence beforeCursor = ic.getTextBeforeCursor(200, 0);

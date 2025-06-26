@@ -1,6 +1,6 @@
 package com.keyboard.keemo.network.models
 
-data class PredictionRequest(
-    @JvmField val phrase: String,
+data class AutocompletionRequest(
+    @JvmField val prefix: String,
     @JvmField val top_k: Int = 3
 )

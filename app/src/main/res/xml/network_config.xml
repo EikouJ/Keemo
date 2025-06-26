@@ -1,5 +1,5 @@
 <network-security-config>
     <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">ngram-api.onrender.com</domain>
+        <domain includeSubdomains="true">keemo-api-predictions.onrender.com</domain>
     </domain-config>
 </network-security-config>
